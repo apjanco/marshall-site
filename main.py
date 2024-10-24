@@ -12,6 +12,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import chromadb
+from chromadb.utils import embedding_functions
 
 
 data = list(srsly.read_jsonl("data/data.jsonl"))
@@ -29,6 +31,10 @@ data_path = "data/data.jsonl"
 if not Path(db_name).exists():
     print("[teal]Creating index...[/teal]")
     make_index(db_name, data)
+
+sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-mpnet-base-v2")
+chroma_client = chromadb.PersistentClient(path=db_name)
+collection = chroma_client.get_or_create_collection(name=db_name, embedding_function=sentence_transformer_ef)
 
 def get_current_username(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
@@ -52,8 +58,21 @@ def get_current_username(
     return credentials.username
 
 @app.get("/")
-def read_root(request: Annotated[str, Depends(get_current_username)]):
-    return templates.TemplateResponse("index.html")
+def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.post("/")
+async def search_item(request: Request):
+    data = await request.json()
+    results = collection.query(
+        query_texts = [data["search"]],
+        n_results=30,
+        where_document={"$contains":data["search"]}
+    )
+    sorted_results = []
+    for id, document, distance in zip(results['ids'][0], results['documents'][0], results['distances'][0]):
+        sorted_results.append({"image":id, "text":document, "distance":distance})
+    return sorted_results
 
 @app.get("/page/{image}")
 def read_item(image: str , request: Request):
