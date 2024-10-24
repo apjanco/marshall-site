@@ -1,0 +1,89 @@
+<html>
+    <head>
+        <title>{{ item.image }}</title>
+        <link rel="stylesheet" href="https://cdn.ckeditor.com/ckeditor5/43.2.0/ckeditor5.css">
+    </head>
+    <body>
+        <h1>{{ item.image }}</h1>
+        <div id="editor" contenteditable="true">
+            {{ item.text | safe }}
+        </div>
+        <script>
+            function postContentChange(data) {
+            fetch('/page/{{ item.image }}', {
+                method: 'POST',
+                headers: {
+                'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: data }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+            }
+        </script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/5.0.0/openseadragon.min.js" integrity="sha512-mdfzGJn9wUFg72mwblmP0uA6j3uB3uEKOQB1gmCCsnsKQNQRys+mITew+5lPFIo0C4NU1Bi/O+Eaw2GMsjC9IA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <div id="fmb-image"
+         class="openseadragon">
+                <script type="text/javascript">
+                    OpenSeadragon({
+                        id: "fmb-image",
+                        prefixUrl: "/assets/openseadragon/",
+                        tileSources: {
+                            type: 'image',
+                            url: '/assets/{{ item.image }}'
+                        }
+                    });
+                </script>
+                <noscript>
+                    <p>OpenSeadragon is not available unless JavaScript is enabled.</p>
+                    <img src='/assets/{{ item.image }}'
+                 height='600'/>
+                </noscript>
+            </div>
+            <script type="importmap">
+            {
+                "imports": {
+                    "ckeditor5": "https://cdn.ckeditor.com/ckeditor5/43.2.0/ckeditor5.js",
+                    "ckeditor5/": "https://cdn.ckeditor.com/ckeditor5/43.2.0/"
+                }
+            }
+        </script>
+        <script type="module">
+            import {
+                ClassicEditor,
+                Essentials,
+                Paragraph,
+                Bold,
+                Italic,
+                Font
+            } from 'ckeditor5';
+
+            ClassicEditor
+                .create( document.querySelector( '#editor' ), {
+                    plugins: [ Essentials, Paragraph, Bold, Italic, Font ],
+                    toolbar: [
+                        'undo', 'redo', '|', 'bold', 'italic', '|',
+                        'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor'
+                    ]
+                } )
+                .then( editor => {
+                    window.editor = editor;
+                    editor.model.document.on( 'change:data', () => {
+                        // post the editor content to the server
+                        console.log(editor.getData());
+                        postContentChange(editor.getData());
+                    });
+                } )
+                .catch( error => {
+                    console.error( error );
+                } );
+        </script>
+        <a href="{{ item.previous }}">Previous</a>
+        <a href="{{ item.next }}">Next</a>
+    </body>
+</html>
