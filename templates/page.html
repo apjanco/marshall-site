@@ -8,7 +8,12 @@
     </head>
     <body>
         <div class="container">
-            <p>{{ item.image }}</p>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/">Home</a></li>
+                    <li class="breadcrumb-item">{{ item.image }}</li>
+                </ol>
+            </nav>
             <a href="{{ item.previous }}"><button type="button" class="btn btn-success">Previous</button></a>
             <a href="{{ item.next }}"><button type="button" class="btn btn-success">Next</button></a>
             <div id="editor" contenteditable="true">
