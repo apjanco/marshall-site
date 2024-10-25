@@ -58,8 +58,8 @@ def get_current_username(
     return credentials.username
 
 @app.get("/")
-def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+def read_root(request: Request, username: Annotated[str, Depends(get_current_username)]):
+    return templates.TemplateResponse("index.html", {"request": request, "username": username})
 
 @app.post("/")
 async def search_item(request: Request):
@@ -93,8 +93,8 @@ def read_item(image: str , request: Request):
 
 @app.post("/page/{image}")
 async def write_item(image: Annotated[str, Depends(get_current_username)], request: Request):
-    data = await request.json()
+    post_data = await request.json()
+    item = next((item for item in data if item["image"] == image), None)
     print(image, data)
-    #item = next((item for item in data if item["image"] == image), None)
     
     
