@@ -3,6 +3,7 @@ import secrets
 import srsly
 import markdown
 from typing import Annotated
+from contextlib import asynccontextmanager
 from rich import print
 from db import make_index
 from pathlib import Path
@@ -20,7 +21,15 @@ data = list(srsly.read_jsonl("data/data.jsonl"))
 # sort the data by image name
 data = sorted(data, key=lambda x: x['image'])
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # On startup
+    print('starting app!')
+    yield
+    # On shutdown
+    print('shutting down app!')
+
+app = FastAPI(lifespan=lifespan)
 security = HTTPBasic()
 app.mount("/assets", StaticFiles(directory='data'), name="assets")
 templates = Jinja2Templates(directory="templates")
@@ -63,13 +72,14 @@ def read_root(request: Request, username: Annotated[str, Depends(get_current_use
 
 @app.post("/")
 async def search_item(request: Request):
-    data = await request.json()
+    post_data = await request.json()
     results = collection.query(
-        query_texts = [data["search"]],
-        n_results=30,
-        where_document={"$contains":data["search"]}
+        query_texts = [post_data["search"]],
+        n_results=1000,
+        where_document={"$contains":post_data["search"]}
     )
     sorted_results = []
+    #TODO read text from jsonl file rather than index, changes can cause confusion
     for id, document, distance in zip(results['ids'][0], results['documents'][0], results['distances'][0]):
         sorted_results.append({"image":id, "text":document, "distance":distance})
     return sorted_results
@@ -92,9 +102,12 @@ def read_item(image: str , request: Request):
         return {"image": image, "error": "Image not found"}
 
 @app.post("/page/{image}")
-async def write_item(image: Annotated[str, Depends(get_current_username)], request: Request):
+async def write_item(user: Annotated[str, Depends(get_current_username)], image:str, request: Request):
     post_data = await request.json()
     item = next((item for item in data if item["image"] == image), None)
-    print(image, data)
-    
-    
+    item['text'] = post_data['text']
+    #write updated data to jsonl file
+    srsly.write_jsonl("data/data.jsonl", data)
+
+
+        
